@@ -1,0 +1,263 @@
+<html>
+<head>
+<title>Topographs</title>
+</head>
+<body style="margin: 0px; padding: 0px;">
+<canvas id="canvas" style="width:100%; height:100%;">
+<script>
+function set_text_size(size){
+	context.font = size.toString() + "px Arial";
+	text_size = size;
+}
+
+function canvas_center_text(text, coord){
+	var size;
+
+	size = context.measureText(text);
+	coord[0] -= size.width/2;
+	coord[1] += text_size/3;
+	context.fillText(text, coord[0], coord[1]);
+}
+
+function get_canvas_coord(point){
+	return [(point[0] + 1)*min_side*0.45 + 0.05*min_side + (canvas.width - min_side)/2, (1 - point[1])*min_side*0.45 + (canvas.height - min_side)/2 + 0.05*min_side];
+}
+
+function plot_point(point){
+	var screen_coord;
+
+	screen_coord = get_canvas_coord(point);
+	context.beginPath();
+	context.arc(screen_coord[0], screen_coord[1], 6, 0, 2*Math.PI, false);
+	context.lineWidth = 3;
+	context.strokeStyle = "#00CC00";
+	context.stroke();
+}
+
+function hyperbolic_segment_angle(point, m){
+	var m;
+	var q;
+	var center = [0, 0];
+	var radius;
+
+	q = point[0] + point[1]*m;
+	center[0] = (point[0]*point[0] - point[1]*point[1] + 1)/(2*q) + (m*point[0]*point[1])/q;
+	center[1] = m*center[0] - m*point[0] + point[1];
+
+	radius = Math.sqrt((point[0] - center[0])*(point[0] - center[0]) + (point[1] - center[1])*(point[1] - center[1]));
+	return [center, radius];
+}
+
+function hyperbolic_dist(point0, point1){
+	var len0;
+	var len1;
+	var e_dist;
+
+	len0 = point0[0]*point0[0] + point0[1]*point0[1];
+	len1 = point1[0]*point1[0] + point1[1]*point1[1];
+	e_dist = (point0[0] - point1[0])*(point0[0] - point1[0]) + (point0[1] - point1[1])*(point0[1]*point1[1]);
+	return Math.acosh(1 + 2*e_dist/((1 - len0)*(1 - len1)));
+}
+
+function invert_circle(circle, inversion_circle){
+	var norm_center = [0, 0];
+	var norm_radius;
+	var q;
+	var new_norm_center = [0, 0];
+	var new_norm_radius;
+	var new_center = [0, 0];
+	var new_radius;
+
+	norm_center[0] = (circle[0][0] - inversion_circle[0][0])/inversion_circle[1];
+	norm_center[1] = (circle[0][1] - inversion_circle[0][1])/inversion_circle[1];
+	norm_radius = circle[1]/inversion_circle[1];
+
+	q = Math.abs(norm_center[0]*norm_center[0] + norm_center[1]*norm_center[1] - norm_radius*norm_radius);
+	new_norm_center[0] = norm_center[0]/q;
+	new_norm_center[1] = norm_center[1]/q;
+	new_norm_radius = norm_radius/q;
+
+	new_radius = new_norm_radius*inversion_circle[1];
+	new_center[0] = new_norm_center[0]*inversion_circle[1] + inversion_circle[0][0];
+	new_center[1] = new_norm_center[1]*inversion_circle[1] + inversion_circle[0][1];
+
+	return [new_center, new_radius];
+}
+
+function hyperbolic_circle(center, radius){
+	var d;
+	var k;
+	var r;
+	var half_way = [0, 0];
+	var separator;
+
+	d = Math.sqrt(center[0]*center[0] + center[1]*center[1]);
+	k = Math.sqrt((1 + d)/(1 - d));
+	r = (k - 1)/(k + 1);
+	half_way[0] = center[0]*r/d;
+	half_way[1] = center[1]*r/d;
+	separator = hyperbolic_segment_angle(half_way, center[1]/center[0]);
+	return invert_circle([[0, 0], (Math.exp(radius) - 1)/(Math.exp(radius) + 1)], separator);
+}
+
+function circle_intersections(circle0, circle1){
+	var d;
+	var l;
+	var h;
+	var dy;
+	var dx;
+	var point0;
+	var point1;
+
+	d = Math.sqrt((circle0[0][0] - circle1[0][0])*(circle0[0][0] - circle1[0][0]) + (circle0[0][1] - circle1[0][1])*(circle0[0][1] - circle1[0][1]));
+	l = (circle0[1]*circle0[1] - circle1[1]*circle1[1] + d*d)/(2*d);
+	h = Math.sqrt(circle0[1]*circle0[1] - l*l);
+
+	dy = circle1[0][1] - circle0[0][1];
+	dx = circle1[0][0] - circle0[0][0];
+	point0 = [l/d*dx + h/d*dy + circle0[0][0], l/d*dy - h/d*dx + circle0[0][1]];
+	point1 = [l/d*dx - h/d*dy + circle0[0][0], l/d*dy + h/d*dx + circle0[0][1]];
+
+	return [point0, point1];
+}
+
+function hyperbolic_point_angle_dist(point, angle, dist, do_draw){
+	var h_circ;
+	var h_seg;
+	var intersections;
+	var angle0;
+	var angle1;
+	var min_angle;
+	var max_angle;
+	var return_value;
+	var screen_coord;
+
+	h_circ = hyperbolic_circle(point, dist);
+	h_seg = hyperbolic_segment_angle(point, -Math.cos(angle)/Math.sin(angle));
+	intersections = circle_intersections(h_circ, h_seg);
+	if((intersections[0][0] - point[0])*Math.cos(angle) + (intersections[0][1] - point[1])*Math.sin(angle) > 0){
+		return_value = intersections[0];
+	} else {
+		return_value = intersections[1];
+	}
+	if(!do_draw){
+		return [return_value, 0];
+	}
+	angle0 = -Math.atan2(return_value[1] - h_seg[0][1], return_value[0] - h_seg[0][0]);
+	angle1 = -Math.atan2(point[1] - h_seg[0][1], point[0] - h_seg[0][0]);
+	if((angle0 - angle1 + 2*Math.PI)%(2*Math.PI) < (angle1 - angle0 + 2*Math.PI)%(2*Math.PI)){
+		min_angle = angle1;
+		max_angle = angle0;
+	} else {
+		min_angle = angle0;
+		max_angle = angle1;
+	}
+	screen_coord = get_canvas_coord(h_seg[0]);
+	
+	context.beginPath();
+	context.arc(screen_coord[0], screen_coord[1], h_seg[1]*min_side*0.45, min_angle, max_angle, false);
+	context.lineWidth = 1;
+	context.strokeStyle = "#000000";
+	context.stroke();
+	return [return_value, -angle0];
+}
+
+function draw_tree_right(point, angle, depth, text_depth){
+	var p0;
+	var p1;
+	var c0;
+	var c1;
+	var angle0;
+	var angle1;
+	var text_location;
+	var center_dist;
+	var e_dist;
+
+	if(depth < 1){
+		return;
+	}
+
+	if(text_depth > 0){
+		e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
+		set_text_size((1 - e_dist)*min_side/7);
+		center_dist = Math.log((3 + e_dist)/(1 + e_dist));
+		if(angle == 0){
+			text_location = get_canvas_coord(hyperbolic_point_angle_dist(point, 0.005, center_dist, false)[0]);
+		} else {
+			text_location = get_canvas_coord(hyperbolic_point_angle_dist(point, angle, center_dist, false)[0]);
+		}
+		canvas_center_text("0", text_location);
+	}
+	p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
+	p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+
+	draw_tree_right(p0[0], (p0[1] + 3*Math.PI/2)%(2*Math.PI), depth - 1, text_depth - 1);
+	draw_tree_right(p1[0], (p1[1] + 5*Math.PI/2)%(2*Math.PI), depth - 1, text_depth - 1);
+}
+
+function draw_tree_left(point, angle, depth, text_depth){
+	var p0;
+	var p1;
+	var c0;
+	var c1;
+	var angle0;
+	var angle1;
+
+	if(depth < 1){
+		return;
+	}
+
+	if(text_depth > 0){
+		e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
+		set_text_size((1 - e_dist)*min_side/7);
+		center_dist = Math.log((3 + e_dist)/(1 + e_dist));
+		text_location = get_canvas_coord(hyperbolic_point_angle_dist(point, angle, center_dist, false)[0]);
+		canvas_center_text("0", text_location);
+	}
+
+	p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
+	p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+
+	draw_tree_left(p0[0], (p0[1] + 3*Math.PI/2)%(2*Math.PI), depth - 1, text_depth - 1);
+	draw_tree_left(p1[0], (p1[1] + 5*Math.PI/2)%(2*Math.PI), depth - 1, text_depth - 1);
+}
+
+function start(){
+	canvas = document.getElementById("canvas");
+	canvas.width = canvas.clientWidth;
+	canvas.height = canvas.clientHeight;
+	center_x = canvas.width/2;
+	center_y = canvas.height/2;
+	if(canvas.width < canvas.height){
+		min_side = canvas.width;
+		max_side = canvas.height;
+	} else {
+		min_side = canvas.height;
+		max_side = canvas.width;
+	}
+	context = canvas.getContext("2d");
+
+	side_lengths = 1.09;
+	branch_angle = Math.PI/3;
+	set_text_size(10);
+
+	set_text_size(min_side/7);
+	canvas_center_text("0", get_canvas_coord([0, 0.5]));
+	canvas_center_text("0", get_canvas_coord([0, -0.5]));
+	left = get_canvas_coord([-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
+	right = get_canvas_coord([(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
+	draw_tree_right([(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0], 0, 9, 6);
+	draw_tree_left([-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0], Math.PI, 9, 6);
+	context.beginPath();
+	context.moveTo(left[0], left[1]);
+	context.lineTo(right[0], right[1]);
+	context.lineWidth = 1;
+	context.strokeStyle = "#000000";
+	context.stroke();
+}
+
+document.addEventListener("DOMContentLoaded", start);
+
+</script>
+</body>
+</html>
