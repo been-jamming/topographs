@@ -574,6 +574,32 @@ function canvas_click(event){
 	}
 }
 
+function canvas_touch(event){
+	var click_x;
+	var click_y;
+	var rect;
+
+	if(event.touches.length == 1){
+		rect = canvas.getBoundingClientRect();
+		click_x = event.changedTouches[0].clientX - rect.left;
+		click_y = event.changedTouches[0].clientY - rect.top;
+
+		if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
+			animation_type = "top_right";
+			begin_animation();
+		} else if(click_x < canvas.width/2 && click_y <= canvas.height/2){
+			animation_type = "top_left";
+			begin_animation();
+		} else if(click_x >= canvas.width/2 && click_y > canvas.height/2){
+			animation_type = "bottom_right";
+			begin_animation();
+		} else {
+			animation_type = "bottom_left";
+			begin_animation();
+		}
+	}
+}
+
 function update_topograph(){
 	var a;
 	var b;
@@ -624,6 +650,7 @@ function start(){
 	update_topograph();
 
 	canvas.addEventListener("mousedown", canvas_click);
+	canvas.addEventListener("touchstart", canvas_touch);
 }
 
 document.addEventListener("DOMContentLoaded", start);
