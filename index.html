@@ -2,8 +2,18 @@
 <head>
 <title>Topographs</title>
 </head>
+<div style="position: absolute; bottom: 0px; width: 100%; height: 20%; text-align: center;">
+<p>Current quadratic form (click update to change to user input):</p>
+<input id="a" value="1" size="5"><span>x^2
++ </span><input id="b" value="0" size="5"><span>xy
++ </span><input id="c" value="1" size="5"><span>y^2</span>
+<button id="update" onclick="update_topograph();">Update</button>
+<br>
+<br>
+<span>Discriminant: <span id="dis"></span> Type: <span id="type"></span></span>
+</div>
 <body style="margin: 0px; padding: 0px;">
-<canvas id="canvas" style="width:100%; height:100%;">
+<canvas id="canvas" style="width:100%; height:80%; position: absolute; top: 0px; z-index: -1;">
 <script>
 function set_text_size(size){
 	context.font = size.toString() + "px Arial";
@@ -30,14 +40,19 @@ function get_canvas_coord(point){
 	return [(point[0] + 1)*min_side*0.45 + 0.05*min_side + (canvas.width - min_side)/2, (1 - point[1])*min_side*0.45 + (canvas.height - min_side)/2 + 0.05*min_side];
 }
 
-function plot_point(point){
+function plot_point(point, color = "#000000"){
 	var screen_coord;
+	var dist;
+
+	dist = point[0]*point[0] + point[1]*point[1];
 
 	screen_coord = get_canvas_coord(point);
 	context.beginPath();
-	context.arc(screen_coord[0], screen_coord[1], 6, 0, 2*Math.PI, false);
-	context.lineWidth = 3;
-	context.strokeStyle = "#00CC00";
+	context.arc(screen_coord[0], screen_coord[1], (1 - dist)*8, 0, 2*Math.PI, false);
+	context.lineWidth = 1;
+	context.strokeStyle = color;
+	context.fillStyle = color;
+	context.fill();
 	context.stroke();
 }
 
@@ -86,7 +101,7 @@ function hyperbolic_line(point0, point1){
 	return [[center_x, center_y], radius];
 }
 
-function hyperbolic_line_segment(point0, point1){
+function hyperbolic_line_segment(point0, point1, color = "#000000"){
 	var angle0;
 	var angle1;
 	var min_angle;
@@ -110,9 +125,13 @@ function hyperbolic_line_segment(point0, point1){
 	}
 	screen_coord = get_canvas_coord(center);
 	context.beginPath();
-	context.arc(screen_coord[0], screen_coord[1], radius*min_side*0.45, min_angle, max_angle, false);
-	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
+	context.arc(screen_coord[0], screen_coord[1], radius*min_side*0.45, -max_angle, -min_angle, false);
+	if(color == "#000000"){
+		context.lineWidth = 1;
+	} else {
+		context.lineWidth = 3;
+	}
+	context.strokeStyle = color;
 	context.stroke();
 }
 
@@ -169,8 +188,14 @@ function get_animation_circle(t){
 }
 
 function animate_point(point, t){
+	if(animation_type == "bottom_right" || animation_type == "bottom_left"){
+		point[1] = -point[1];
+	}
 	point = invert_point(point, animation_circle);
 	point[0] = -point[0];
+	if(animation_type == "bottom_right" || animation_type == "bottom_left"){
+		point[1] = -point[1];
+	}
 
 	return point;
 }
@@ -237,7 +262,7 @@ function circle_intersections(circle0, circle1){
 	return [point0, point1];
 }
 
-function hyperbolic_point_angle_dist(point, angle, dist, do_draw){
+function hyperbolic_point_angle_dist(point, angle, dist, do_draw, color = "#000000"){
 	var h_circ;
 	var h_seg;
 	var intersections;
@@ -270,8 +295,12 @@ function hyperbolic_point_angle_dist(point, angle, dist, do_draw){
 	}
 	screen_coord = get_canvas_coord(h_seg[0]);
 	context.beginPath();
-	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
+	if(color == "#000000"){
+		context.lineWidth = 1;
+	} else {
+		context.lineWidth = 3;
+	}
+	context.strokeStyle = color;
 	context.arc(screen_coord[0], screen_coord[1], h_seg[1]*min_side*0.45, -max_angle, -min_angle, false);
 	context.stroke();
 	angle0 -= Math.PI/2;
@@ -287,14 +316,16 @@ function push_text(point, angle, text){
 	var text_location;
 
 	e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
-	set_text_size((1 - e_dist)*min_side/7);
 	center_dist = Math.log((3 + e_dist)/(1 + e_dist));
 	if(angle == 0){
-		text_location = get_canvas_coord(hyperbolic_point_angle_dist(point, 0.005, center_dist, false)[0]);
+		text_location = hyperbolic_point_angle_dist(point, 0.005, center_dist, false)[0];
 	} else {
-		text_location = get_canvas_coord(hyperbolic_point_angle_dist(point, angle, center_dist, false)[0]);
+		text_location = hyperbolic_point_angle_dist(point, angle, center_dist, false)[0];
 	}
-	canvas_center_text(text, text_location, (1 - e_dist)*min_side/3);
+	e_dist = Math.sqrt(text_location[0]*text_location[0] + text_location[1]*text_location[1]);
+	set_text_size((1 - e_dist)*min_side/4);
+	text_location = get_canvas_coord(text_location);
+	canvas_center_text(text, text_location, (1 - e_dist)*min_side/2);
 }
 
 function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
@@ -312,10 +343,27 @@ function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
 
 	new_val0 = 2*(val0 + val2) - val1;
 	new_val1 = 2*(val1 + val2) - val0;
-	p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
-	p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+	if(Math.sign(val1) != Math.sign(val2)){
+		p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true, "#0088FF");
+	} else {
+		p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
+	}
+	if(Math.sign(val2) != Math.sign(val0)){
+		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true, "#0088FF");
+	} else {
+		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+	}
 	if(text_depth > 0){
+		if(val2 == 0){
+			context.fillStyle = "#0088FF";
+		} else {
+			context.fillStyle = "#000000";
+		}
 		push_text(point, angle, val2.toString());
+	}
+
+	if(Math.abs(val0 + val1) >= Math.abs(val2) && Math.abs(val0 + val2) >= Math.abs(val1) && Math.abs(val1 + val2) >= Math.abs(val0)){
+		plot_point(point, "#0088FF");
 	}
 
 	draw_tree_right(p0[0], p0[1], depth - 1, text_depth - 1, val2, val1, new_val1);
@@ -337,57 +385,220 @@ function draw_tree_left(point, angle, depth, text_depth, val0, val1, val2){
 
 	new_val0 = 2*(val0 + val2) - val1;
 	new_val1 = 2*(val2 + val1) - val0;
-	p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
-	p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+	if(Math.sign(val0) != Math.sign(val2)){
+		p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true, "#0088FF");
+	} else {
+		p0 = hyperbolic_point_angle_dist(point, angle + branch_angle, side_lengths, true);
+	}
+	if(Math.sign(val2) != Math.sign(val1)){
+		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true, "#0088FF");
+	} else {
+		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
+	}
 	if(text_depth > 0){
+		if(val2 == 0){
+			context.fillStyle = "#0088FF";
+		} else {
+			context.fillStyle = "#000000";
+		}
 		push_text(point, angle, val2.toString());
+	}
+
+	if(Math.abs(val0 + val1) >= Math.abs(val2) && Math.abs(val0 + val2) >= Math.abs(val1) && Math.abs(val1 + val2) >= Math.abs(val0)){
+		plot_point(point, "#0088FF");
 	}
 
 	draw_tree_left(p0[0], p0[1], depth - 1, text_depth - 1, val0, val2, new_val0);
 	draw_tree_left(p1[0], p1[1], depth - 1, text_depth - 1, val2, val1, new_val1);
 }
 
-function render(){
-	/*
-	screen_coord = get_canvas_coord([0, 0]);
-	context.beginPath();
-	context.arc(screen_coord[0], screen_coord[1], min_side*0.45, 0, Math.PI*2, false);
-	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
-	context.stroke();
-	*/
-
-	/*
-	set_text_size(min_side/7);
-	canvas_center_text("-1", get_canvas_coord([0, 0.5]), min_side/3);
-	set_text_size(min_side/7);
-	canvas_center_text("1", get_canvas_coord([0, -0.5]), min_side/3);
-	*/
+function render_stop(){
+	var left;
+	var right;
+	var screen_coord0;
+	var screen_coord1;
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
+
+	left = [-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
+	right = [(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
+
+	screen_coord0 = get_canvas_coord(left);
+	screen_coord1 = get_canvas_coord(right);
 	
+	context.beginPath();
+	context.moveTo(screen_coord0[0], screen_coord0[1]);
+	context.lineTo(screen_coord1[0], screen_coord1[1]);
+	if(Math.sign(home_value0) != Math.sign(home_value1)){
+		context.lineWidth = 3;
+		context.strokeStyle = "#0088FF";
+	} else {
+		context.lineWidth = 1;
+		context.strokeStyle = "#000000";
+	}
+	context.stroke();
+
+	if(home_value0 == 0){
+		context.fillStyle = "#0088FF";
+	} else {
+		context.fillStyle = "#000000";
+	}
+	push_text([0.001, 0], Math.PI/2, home_value0.toString());
+	if(home_value1 == 0){
+		context.fillStyle = "#0088FF";
+	} else {
+		context.fillStyle = "#000000";
+	}
+	push_text([0.001, 0], -Math.PI/2, home_value1.toString());
+	draw_tree_right(right, 0, 9, 6, home_value1, home_value0, home_value2);
+	draw_tree_left(left, Math.PI, 9, 6, home_value1, home_value0, home_value3);
+	animation_time = 0;
+}
+
+function render(){
+	var new_home_value;
+
+	context.clearRect(0, 0, canvas.width, canvas.height);
+
 	left = animate_point([-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
 	right = animate_point([(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
 
 	h_seg = hyperbolic_line(left, right);
-	right_angle = Math.atan2(right[1] - h_seg[0][1], right[0] - h_seg[0][0]) - Math.PI/2;
-	left_angle = Math.atan2(left[1] - h_seg[0][1], left[0] - h_seg[0][0]) + Math.PI/2;
+	if(animation_type == "bottom_right" || animation_type == "bottom_left"){
+		right_angle = -Math.atan2(right[1] - h_seg[0][1], h_seg[0][0] - right[0]) - Math.PI/2;
+		left_angle = -Math.atan2(left[1] - h_seg[0][1], h_seg[0][0] - left[0]) + Math.PI/2;
+	} else {
+		right_angle = Math.atan2(right[1] - h_seg[0][1], right[0] - h_seg[0][0]) - Math.PI/2;
+		left_angle = Math.atan2(left[1] - h_seg[0][1], left[0] - h_seg[0][0]) + Math.PI/2;
+	}
 
-	push_text(animate_point([0, 0]), right_angle + Math.PI/2, "-1");
-	push_text(animate_point([0, 0]), right_angle - Math.PI/2, "1");
-	draw_tree_right(right, right_angle, 9, 6, 1, -1, 2);
-	draw_tree_left(left, left_angle, 9, 6, 1, -1, -2);
+	if(Math.sign(home_value0) != Math.sign(home_value1)){
+		hyperbolic_line_segment(left, right, "#0088FF");
+	} else {
+		hyperbolic_line_segment(left, right);
+	}
 
-	animation_time = (animation_time + 0.05)%1;
-	get_animation_circle(animation_time);
-	/*
-	context.beginPath();
-	context.moveTo(left[0], left[1]);
-	context.lineTo(right[0], right[1]);
-	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
-	context.stroke();
-	*/
+	if(home_value0 == 0){
+		context.fillStyle = "#0088FF";
+	} else {
+		context.fillStyle = "#000000";
+	}
+	push_text(animate_point([0, 0]), right_angle + Math.PI/2, home_value0.toString());
+	if(home_value1 == 0){
+		context.fillStyle = "#0088FF";
+	} else {
+		context.fillStyle = "#000000";
+	}
+	push_text(animate_point([0, 0]), right_angle - Math.PI/2, home_value1.toString());
+	draw_tree_right(right, right_angle, 9, 6, home_value1, home_value0, home_value2);
+	draw_tree_left(left, left_angle, 9, 6, home_value1, home_value0, home_value3);
+
+	animation_time += animation_inc;
+	if(Math.abs(animation_time) > 1){
+		clearInterval(interval);
+		if(animation_type == "top_right"){
+			new_home_value = 2*(home_value0 + home_value2) - home_value1;
+			home_value3 = home_value1;
+			home_value1 = home_value2;
+			home_value2 = new_home_value;
+		} else if(animation_type == "top_left"){
+			new_home_value = 2*(home_value0 + home_value3) - home_value1;
+			home_value2 = home_value1;
+			home_value1 = home_value3;
+			home_value3 = new_home_value;
+		} else if(animation_type == "bottom_right"){
+			new_home_value = 2*(home_value1 + home_value2) - home_value0;
+			home_value3 = home_value0;
+			home_value0 = home_value2;
+			home_value2 = new_home_value;
+		} else {
+			new_home_value = 2*(home_value1 + home_value3) - home_value0;
+			home_value2 = home_value0;
+			home_value0 = home_value3;
+			home_value3 = new_home_value;
+		}
+		document.getElementById("a").value = home_value0.toString();
+		document.getElementById("c").value = home_value1.toString();
+		document.getElementById("b").value = (home_value2 - home_value0 - home_value1).toString();
+		setTimeout(render_stop, 50);
+	} else {
+		get_animation_circle(animation_time);
+	}
+}
+
+function begin_animation(){
+	if(animation_time == 0 && animation_type == "top_right"){
+		animation_time = 0.01;
+		animation_inc = 0.1;
+		get_animation_circle(animation_time);
+		interval = setInterval(render, 50);
+	} else if(animation_time == 0 && animation_type == "top_left"){
+		animation_time = -0.01;
+		animation_inc = -0.1;
+		get_animation_circle(animation_time);
+		interval = setInterval(render, 50);
+	} else if(animation_time == 0 && animation_type == "bottom_right"){
+		animation_time = 0.01;
+		animation_inc = 0.1;
+		get_animation_circle(animation_time);
+		interval = setInterval(render, 50);
+	} else if(animation_time == 0){
+		animation_time = -0.01;
+		animation_inc = -0.1;
+		get_animation_circle(animation_time);
+		interval = setInterval(render, 50);
+	}
+}
+
+function canvas_click(event){
+	var click_x;
+	var click_y;
+	var rect;
+
+	rect = canvas.getBoundingClientRect();
+	click_x = event.clientX - rect.left;
+	click_y = event.clientY - rect.top;
+
+	if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
+		animation_type = "top_right";
+		begin_animation();
+	} else if(click_x < canvas.width/2 && click_y <= canvas.height/2){
+		animation_type = "top_left";
+		begin_animation();
+	} else if(click_x >= canvas.width/2 && click_y > canvas.height/2){
+		animation_type = "bottom_right";
+		begin_animation();
+	} else {
+		animation_type = "bottom_left";
+		begin_animation();
+	}
+}
+
+function update_topograph(){
+	var a;
+	var b;
+	var c;
+	var discriminant;
+
+	a = parseInt(document.getElementById("a").value);
+	b = parseInt(document.getElementById("b").value);
+	c = parseInt(document.getElementById("c").value);
+
+	home_value0 = a;
+	home_value1 = c;
+	home_value2 = a + b + c;
+	home_value3 = a - b + c;
+	discriminant = b*b - 4*a*c;
+	document.getElementById("dis").innerHTML = discriminant.toString();
+
+	if(discriminant > 0){
+		document.getElementById("type").innerHTML = "indefinite";
+	} else if(discriminant < 0){
+		document.getElementById("type").innerHTML = "definite";
+	} else {
+		document.getElementById("type").innerHTML = "semidefinite";
+	}
+	render_stop();
 }
 
 function start(){
@@ -404,12 +615,15 @@ function start(){
 		max_side = canvas.width;
 	}
 	context = canvas.getContext("2d");
-
-	animation_time = 0.001;
-	get_animation_circle(animation_time);
 	side_lengths = 1.09;
 	branch_angle = Math.PI/3;
-	setInterval(render, 50);
+
+	document.getElementById("a").value = "1";
+	document.getElementById("b").value = "0";
+	document.getElementById("c").value = "1";
+	update_topograph();
+
+	canvas.addEventListener("mousedown", canvas_click);
 }
 
 document.addEventListener("DOMContentLoaded", start);
