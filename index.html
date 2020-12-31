@@ -600,6 +600,7 @@ function canvas_click(event){
 	}
 }
 
+/*
 function canvas_touch(event){
 	var click_x;
 	var click_y;
@@ -625,6 +626,7 @@ function canvas_touch(event){
 		}
 	}
 }
+*/
 
 function update_topograph(){
 	var a;
@@ -653,6 +655,14 @@ function update_topograph(){
 	render_stop();
 }
 
+function getTouchPos(canvasDom, touchEvent){
+	var rect = canvasDom.getBoundingClientRect();
+	return {
+		x: touchEvent.touches[0].clientX - rect.left,
+		y: touchEvent.touches[0].clientY - rect.top
+	};
+}
+
 function start(){
 	canvas = document.getElementById("canvas");
 	canvas.width = canvas.clientWidth;
@@ -676,7 +686,14 @@ function start(){
 	update_topograph();
 
 	canvas.addEventListener("mousedown", canvas_click);
-	canvas.addEventListener("touchstart", canvas_touch);
+	canvas.addEventListener("touchstart", function(e){
+		var mousePos = getTouchPos(canvas, e);
+		var touch = e.touches[0];
+		var mouseEvent = new MouseEvent("mousedown", {
+			clientX: touch.clientX,
+			clientY: touch.clientY
+		});
+	});
 }
 
 document.addEventListener("DOMContentLoaded", start);
