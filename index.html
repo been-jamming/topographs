@@ -313,7 +313,20 @@ function hyperbolic_point_angle_dist(point, angle, dist, do_draw, color = "#0000
 function push_text(point, angle, text){
 	var e_dist;
 	var center_dist;
-	var text_location;
+	var text_location = [0, 0];
+	var text_angle;
+
+	e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
+	text_location[0] = point[0] + Math.cos(angle)*(1 - e_dist)*0.7246083823764354;
+	text_location[1] = point[1] + Math.sin(angle)*(1 - e_dist)*0.7246083823764354;
+	e_dist = Math.sqrt(text_location[0]*text_location[0] + text_location[1]*text_location[1]);
+	text_angle = Math.atan2(text_location[1], text_location[0]);
+	set_text_size((1 - e_dist*e_dist)*min_side/4);
+	text_location[0] -= Math.cos(text_angle)*(1 - e_dist)/3;
+	text_location[1] -= Math.sin(text_angle)*(1 - e_dist)/3;
+	text_location = get_canvas_coord(text_location);
+	canvas_center_text(text, text_location, (1 - e_dist)*min_side/2);
+	return;
 
 	e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
 	center_dist = Math.log((3 + e_dist)/(1 + e_dist));
@@ -443,13 +456,13 @@ function render_stop(){
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text([0.001, 0], Math.PI/2, home_value0.toString());
+	push_text(right, 2*Math.PI/3, home_value0.toString());
 	if(home_value1 == 0){
 		context.fillStyle = "#0088FF";
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text([0.001, 0], -Math.PI/2, home_value1.toString());
+	push_text(left, -Math.PI/3, home_value1.toString());
 	draw_tree_right(right, 0, 9, 6, home_value1, home_value0, home_value2);
 	draw_tree_left(left, Math.PI, 9, 6, home_value1, home_value0, home_value3);
 	animation_time = 0;
@@ -460,8 +473,9 @@ function render(){
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 
-	left = animate_point([-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
-	right = animate_point([(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0]);
+	x_val = (Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1);
+	left = animate_point([-x_val, 0]);
+	right = animate_point([x_val, 0]);
 
 	h_seg = hyperbolic_line(left, right);
 	if(animation_type == "bottom_right" || animation_type == "bottom_left"){
@@ -483,13 +497,25 @@ function render(){
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text(animate_point([0, 0]), right_angle + Math.PI/2, home_value0.toString());
+	if(animation_type == "bottom_right"){
+		push_text(right, right_angle + 2*Math.PI/3, home_value0.toString());
+	} else if(animation_type == "bottom_left"){
+		push_text(left, left_angle - 2*Math.PI/3, home_value0.toString());
+	} else {
+		push_text([x_val, 0], 2*Math.PI/3, home_value0.toString());
+	}
 	if(home_value1 == 0){
 		context.fillStyle = "#0088FF";
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text(animate_point([0, 0]), right_angle - Math.PI/2, home_value1.toString());
+	if(animation_type == "top_left"){
+		push_text(left, left_angle + 2*Math.PI/3, home_value1.toString());
+	} else if(animation_type == "top_right"){
+		push_text(right, right_angle - 2*Math.PI/3, home_value1.toString());
+	} else {
+		push_text([-x_val, 0], -Math.PI/3, home_value1.toString());
+	}
 	draw_tree_right(right, right_angle, 9, 6, home_value1, home_value0, home_value2);
 	draw_tree_left(left, left_angle, 9, 6, home_value1, home_value0, home_value3);
 
