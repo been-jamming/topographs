@@ -607,8 +607,8 @@ function canvas_touch(event){
 
 	if(event.touches.length == 1){
 		rect = canvas.getBoundingClientRect();
-		click_x = event.changedTouches[0].clientX - rect.left;
-		click_y = event.changedTouches[0].clientY - rect.top;
+		click_x = event.touches[0].clientX - rect.left;
+		click_y = event.touches[0].clientY - rect.top;
 
 		if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
 			animation_type = "top_right";
