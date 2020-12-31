@@ -13,7 +13,6 @@
 <span>Discriminant: <span id="dis"></span> Type: <span id="type"></span></span>
 </div>
 <body style="margin: 0px; padding: 0px;">
-<canvas id="canvas" style="width:100%; height:80%; position: absolute; top: 0px; z-index: -1;">
 <script>
 function set_text_size(size){
 	context.font = size.toString() + "px Arial";
@@ -327,18 +326,6 @@ function push_text(point, angle, text){
 	text_location = get_canvas_coord(text_location);
 	canvas_center_text(text, text_location, (1 - e_dist)*min_side/2);
 	return;
-
-	e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
-	center_dist = Math.log((3 + e_dist)/(1 + e_dist));
-	if(angle == 0){
-		text_location = hyperbolic_point_angle_dist(point, 0.005, center_dist, false)[0];
-	} else {
-		text_location = hyperbolic_point_angle_dist(point, angle, center_dist, false)[0];
-	}
-	e_dist = Math.sqrt(text_location[0]*text_location[0] + text_location[1]*text_location[1]);
-	set_text_size((1 - e_dist)*min_side/4);
-	text_location = get_canvas_coord(text_location);
-	canvas_center_text(text, text_location, (1 - e_dist)*min_side/2);
 }
 
 function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
@@ -699,5 +686,6 @@ function start(){
 document.addEventListener("DOMContentLoaded", start);
 
 </script>
+<canvas id="canvas" style="width:100%; height:80%; position: absolute; top: 0px;"></canvas>
 </body>
 </html>
