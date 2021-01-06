@@ -581,22 +581,22 @@ function render(){
 
 function begin_animation(){
 	if(animation_time == 0 && animation_type == "top_right"){
-		animation_time = 0.01;
+		animation_time = 0.02;
 		animation_inc = 0.1;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 50);
 	} else if(animation_time == 0 && animation_type == "top_left"){
-		animation_time = -0.01;
+		animation_time = -0.02;
 		animation_inc = -0.1;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 50);
 	} else if(animation_time == 0 && animation_type == "bottom_right"){
-		animation_time = 0.01;
+		animation_time = 0.02;
 		animation_inc = 0.1;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 50);
 	} else if(animation_time == 0){
-		animation_time = -0.01;
+		animation_time = -0.02;
 		animation_inc = -0.1;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 50);
