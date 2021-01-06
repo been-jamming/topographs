@@ -14,6 +14,15 @@
 </div>
 <body style="margin: 0px; padding: 0px;">
 <script>
+const determinant = m => 
+	m.length == 1 ?
+	m[0][0] :
+	m.length == 2 ? 
+	m[0][0]*m[1][1]-m[0][1]*m[1][0] :
+	m[0].reduce((r,e,i) => 
+	r+(-1)**(i+2)*e*determinant(m.slice(1).map(c => 
+	c.filter((_,j) => i != j))),0)
+
 function set_text_size(size){
 	context.font = size.toString() + "px Arial";
 	text_size = size;
@@ -55,7 +64,7 @@ function plot_point(point, color = "#000000"){
 	context.stroke();
 }
 
-function plot_line(point0, point1){
+function plot_line(point0, point1, color = "#000000"){
 	var screen_coord0;
 	var screen_coord1;
 
@@ -63,21 +72,47 @@ function plot_line(point0, point1){
 	screen_coord1 = get_canvas_coord(point1);
 	context.beginPath();
 	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
+	context.strokeStyle = color;
 	context.moveTo(screen_coord0[0], screen_coord0[1]);
 	context.lineTo(screen_coord1[0], screen_coord1[1]);
 	context.stroke();
 }
 
-function plot_circle(circle){
+function plot_circle(circle, color = "#000000"){
 	var screen_coord;
 
 	screen_coord = get_canvas_coord(circle[0]);
 	context.beginPath();
 	context.arc(screen_coord[0], screen_coord[1], circle[1]*min_side*0.45, 0, 2*Math.PI, false);
 	context.lineWidth = 1;
-	context.strokeStyle = "#000000";
+	context.strokeStyle = color;
 	context.stroke();
+}
+
+function circle_from_three_points(point0, point1, point2){
+	var m0;
+	var m1;
+	var m2;
+	var q;
+	var center_x;
+	var center_y;
+	var radius;
+
+	m0 = [[point0[0], point0[1], 1], [point1[0], point1[1], 1], [point2[0], point2[1], 1]];
+	m1 = [[point0[0]*point0[0] + point0[1]*point0[1], point0[1], 1],
+	      [point1[0]*point1[0] + point1[1]*point1[1], point1[1], 1],
+	      [point2[0]*point2[0] + point2[1]*point2[1], point2[1], 1]];
+	m2 = [[point0[0]*point0[0] + point0[1]*point0[1], point0[0], 1],
+	      [point1[0]*point1[0] + point1[1]*point1[1], point1[0], 1],
+	      [point2[0]*point2[0] + point2[1]*point2[1], point2[0], 1]];
+	
+	q = determinant(m0);
+	center_x = determinant(m1)/(2*q);
+	center_y = -determinant(m2)/(2*q);
+
+	radius = Math.sqrt((center_x - point0[0])*(center_x - point0[0]) + (center_y - point0[1])*(center_y - point0[1]));
+
+	return [[center_x, center_y], radius];
 }
 
 function hyperbolic_line(point0, point1){
@@ -309,23 +344,14 @@ function hyperbolic_point_angle_dist(point, angle, dist, do_draw, color = "#0000
 	return [return_value, angle0];
 }
 
-function push_text(point, angle, text){
-	var e_dist;
-	var center_dist;
-	var text_location = [0, 0];
-	var text_angle;
+function text_in_circle(text, circle){
+	var text_location;
+	var screen_radius;
 
-	e_dist = Math.sqrt(point[0]*point[0] + point[1]*point[1]);
-	text_location[0] = point[0] + Math.cos(angle)*(1 - e_dist)*0.7246083823764354;
-	text_location[1] = point[1] + Math.sin(angle)*(1 - e_dist)*0.7246083823764354;
-	e_dist = Math.sqrt(text_location[0]*text_location[0] + text_location[1]*text_location[1]);
-	text_angle = Math.atan2(text_location[1], text_location[0]);
-	set_text_size((1 - e_dist*e_dist)*min_side/4);
-	text_location[0] -= Math.cos(text_angle)*(1 - e_dist)/3;
-	text_location[1] -= Math.sin(text_angle)*(1 - e_dist)/3;
-	text_location = get_canvas_coord(text_location);
-	canvas_center_text(text, text_location, (1 - e_dist)*min_side/2);
-	return;
+	text_location = get_canvas_coord(circle[0]);
+	screen_radius = circle[1]*min_side*0.45;
+	set_text_size(screen_radius*4/5);
+	canvas_center_text(text, text_location, screen_radius*6/5);
 }
 
 function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
@@ -336,6 +362,7 @@ function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
 	var e_dist;
 	var center_dist;
 	var text_location;
+	var horocycle;
 
 	if(depth < 1){
 		return;
@@ -353,13 +380,15 @@ function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
 	} else {
 		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
 	}
+	horocycle = circle_from_three_points(point, p0[0], p1[0]);
 	if(text_depth > 0){
 		if(val2 == 0){
 			context.fillStyle = "#0088FF";
 		} else {
 			context.fillStyle = "#000000";
 		}
-		push_text(point, angle, val2.toString());
+		
+		text_in_circle(val2.toString(), horocycle);
 	}
 
 	if(Math.abs(val0 + val1) >= Math.abs(val2) && Math.abs(val0 + val2) >= Math.abs(val1) && Math.abs(val1 + val2) >= Math.abs(val0)){
@@ -378,6 +407,7 @@ function draw_tree_left(point, angle, depth, text_depth, val0, val1, val2){
 	var e_dist;
 	var center_dist;
 	var text_location;
+	var horocycle;
 
 	if(depth < 1){
 		return;
@@ -395,13 +425,15 @@ function draw_tree_left(point, angle, depth, text_depth, val0, val1, val2){
 	} else {
 		p1 = hyperbolic_point_angle_dist(point, angle - branch_angle, side_lengths, true);
 	}
+	horocycle = circle_from_three_points(point, p0[0], p1[0]);
 	if(text_depth > 0){
 		if(val2 == 0){
 			context.fillStyle = "#0088FF";
 		} else {
 			context.fillStyle = "#000000";
 		}
-		push_text(point, angle, val2.toString());
+
+		text_in_circle(val2.toString(), horocycle);
 	}
 
 	if(Math.abs(val0 + val1) >= Math.abs(val2) && Math.abs(val0 + val2) >= Math.abs(val1) && Math.abs(val1 + val2) >= Math.abs(val0)){
@@ -415,6 +447,8 @@ function draw_tree_left(point, angle, depth, text_depth, val0, val1, val2){
 function render_stop(){
 	var left;
 	var right;
+	var top_point = [0.5206196257033036, 0.3480357778928463];
+	var bottom_point = [0.5206196257033036, -0.3480357778928463];
 	var screen_coord0;
 	var screen_coord1;
 
@@ -422,6 +456,8 @@ function render_stop(){
 
 	left = [-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
 	right = [(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
+	horocycle_top = circle_from_three_points(left, right, top_point);
+	horocycle_bottom = circle_from_three_points(left, right, bottom_point);
 
 	screen_coord0 = get_canvas_coord(left);
 	screen_coord1 = get_canvas_coord(right);
@@ -443,26 +479,38 @@ function render_stop(){
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text(right, 2*Math.PI/3, home_value0.toString());
+	//push_text(right, 2*Math.PI/3, home_value0.toString());
+	text_in_circle(home_value0.toString(), horocycle_top);
 	if(home_value1 == 0){
 		context.fillStyle = "#0088FF";
 	} else {
 		context.fillStyle = "#000000";
 	}
-	push_text(left, -Math.PI/3, home_value1.toString());
-	draw_tree_right(right, 0, 9, 6, home_value1, home_value0, home_value2);
-	draw_tree_left(left, Math.PI, 9, 6, home_value1, home_value0, home_value3);
+	//push_text(left, -Math.PI/3, home_value1.toString());
+	text_in_circle(home_value1.toString(), horocycle_bottom);
+	draw_tree_right(right, 0, render_depth, text_depth, home_value1, home_value0, home_value2);
+	draw_tree_left(left, Math.PI, render_depth, text_depth, home_value1, home_value0, home_value3);
 	animation_time = 0;
 }
 
 function render(){
 	var new_home_value;
+	var top_point = [0.5206196257033036, 0.3480357778928463];
+	var bottom_point = [0.5206196257033036, -0.3480357778928463];
+	var top_point_translated;
+	var bottom_point_translated;
+	var horocycle_top;
+	var horocycle_bottom;
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 
 	x_val = (Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1);
 	left = animate_point([-x_val, 0]);
 	right = animate_point([x_val, 0]);
+	top_point_translated = animate_point(top_point);
+	bottom_point_translated = animate_point(bottom_point);
+	horocycle_top = circle_from_three_points(left, right, top_point_translated);
+	horocycle_bottom = circle_from_three_points(left, right, bottom_point_translated);
 
 	h_seg = hyperbolic_line(left, right);
 	if(animation_type == "bottom_right" || animation_type == "bottom_left"){
@@ -484,27 +532,19 @@ function render(){
 	} else {
 		context.fillStyle = "#000000";
 	}
-	if(animation_type == "bottom_right"){
-		push_text(right, right_angle + 2*Math.PI/3, home_value0.toString());
-	} else if(animation_type == "bottom_left"){
-		push_text(left, left_angle - 2*Math.PI/3, home_value0.toString());
-	} else {
-		push_text([x_val, 0], 2*Math.PI/3, home_value0.toString());
-	}
+
+	text_in_circle(home_value0.toString(), horocycle_top);
+
 	if(home_value1 == 0){
 		context.fillStyle = "#0088FF";
 	} else {
 		context.fillStyle = "#000000";
 	}
-	if(animation_type == "top_left"){
-		push_text(left, left_angle + 2*Math.PI/3, home_value1.toString());
-	} else if(animation_type == "top_right"){
-		push_text(right, right_angle - 2*Math.PI/3, home_value1.toString());
-	} else {
-		push_text([-x_val, 0], -Math.PI/3, home_value1.toString());
-	}
-	draw_tree_right(right, right_angle, 9, 6, home_value1, home_value0, home_value2);
-	draw_tree_left(left, left_angle, 9, 6, home_value1, home_value0, home_value3);
+
+	text_in_circle(home_value1.toString(), horocycle_bottom);
+
+	draw_tree_right(right, right_angle, render_depth, text_depth, home_value1, home_value0, home_value2);
+	draw_tree_left(left, left_angle, render_depth, text_depth, home_value1, home_value0, home_value3);
 
 	animation_time += animation_inc;
 	if(Math.abs(animation_time) > 1){
@@ -587,34 +627,6 @@ function canvas_click(event){
 	}
 }
 
-/*
-function canvas_touch(event){
-	var click_x;
-	var click_y;
-	var rect;
-
-	if(event.touches.length == 1){
-		rect = canvas.getBoundingClientRect();
-		click_x = event.touches[0].clientX - rect.left;
-		click_y = event.touches[0].clientY - rect.top;
-
-		if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
-			animation_type = "top_right";
-			begin_animation();
-		} else if(click_x < canvas.width/2 && click_y <= canvas.height/2){
-			animation_type = "top_left";
-			begin_animation();
-		} else if(click_x >= canvas.width/2 && click_y > canvas.height/2){
-			animation_type = "bottom_right";
-			begin_animation();
-		} else {
-			animation_type = "bottom_left";
-			begin_animation();
-		}
-	}
-}
-*/
-
 function update_topograph(){
 	var a;
 	var b;
@@ -664,7 +676,10 @@ function start(){
 		max_side = canvas.width;
 	}
 	context = canvas.getContext("2d");
-	side_lengths = 1.09;
+	side_lengths = 1.092;
+	render_depth = 9;
+	text_depth = 6;
+	frame_rate = 20;
 	branch_angle = Math.PI/3;
 
 	document.getElementById("a").value = "1";
