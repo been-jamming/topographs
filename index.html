@@ -2,17 +2,9 @@
 <head>
 <title>Topographs</title>
 </head>
-<div style="position: absolute; bottom: 0px; width: 100%; height: 20%; text-align: center;">
-<p>Current quadratic form (click update to change to user input):</p>
-<input id="a" value="1" size="5"><span>x^2
-+ </span><input id="b" value="0" size="5"><span>xy
-+ </span><input id="c" value="1" size="5"><span>y^2</span>
-<button id="update" onclick="update_topograph();">Update</button>
-<br>
-<br>
-<span>Discriminant: <span id="dis"></span> Type: <span id="type"></span></span>
-</div>
 <body style="margin: 0px; padding: 0px;">
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.0.1/es5/tex-mml-chtml.js"></script>
 <script>
 const determinant = m => 
 	m.length == 1 ?
@@ -354,6 +346,24 @@ function text_in_circle(text, circle){
 	canvas_center_text(text, text_location, screen_radius*6/5);
 }
 
+function signed_coeff(num){
+	if(num == 1){
+		return "+";
+	} else if(num >= 0){
+		return "+" + num.toString();
+	} else {
+		return num.toString();
+	}
+}
+
+function coeff(num){
+	if(num == 1){
+		return "";
+	} else {
+		return num.toString();
+	}
+}
+
 function draw_tree_right(point, angle, depth, text_depth, val0, val1, val2){
 	var p0;
 	var p1;
@@ -444,6 +454,15 @@ function draw_tree_left(point, angle, depth, text_depth, val0, val1, val2){
 	draw_tree_left(p1[0], p1[1], depth - 1, text_depth - 1, val2, val1, new_val1);
 }
 
+function update_math(){
+	new_transformation = "Transformation:\\[" + coeff(orig_a) + "x_0^2 " + signed_coeff(orig_b) + "x_0y_0 " + signed_coeff(orig_c) + "y_0^2 \\rightarrow " + coeff(home_value0) + "x^2 " + signed_coeff(home_value2 - home_value0 - home_value1) + "xy " + signed_coeff(home_value1) + "y^2\\]\\[\\begin{pmatrix}" + x_vec[0].toString() + " && " + x_vec[1].toString() + "\\\\" + y_vec[0].toString() + " && " + y_vec[1].toString() + "\\\\\\end{pmatrix}{x \\choose y} = {x_0 \\choose y_0}\\]";
+	document.getElementById("transformation-temp").innerHTML = new_transformation;
+}
+
+function typeset(){
+	current_mathjax_promise = current_mathjax_promise.then(function(){var result = MathJax.typesetPromise(update_math()); document.getElementById("transformation").innerHTML = document.getElementById("transformation-temp").innerHTML; return result;})
+}
+
 function render_stop(){
 	var left;
 	var right;
@@ -479,18 +498,17 @@ function render_stop(){
 	} else {
 		context.fillStyle = "#000000";
 	}
-	//push_text(right, 2*Math.PI/3, home_value0.toString());
 	text_in_circle(home_value0.toString(), horocycle_top);
 	if(home_value1 == 0){
 		context.fillStyle = "#0088FF";
 	} else {
 		context.fillStyle = "#000000";
 	}
-	//push_text(left, -Math.PI/3, home_value1.toString());
 	text_in_circle(home_value1.toString(), horocycle_bottom);
 	draw_tree_right(right, 0, render_depth, text_depth, home_value1, home_value0, home_value2);
 	draw_tree_left(left, Math.PI, render_depth, text_depth, home_value1, home_value0, home_value3);
 	animation_time = 0;
+	typeset();
 }
 
 function render(){
@@ -501,6 +519,7 @@ function render(){
 	var bottom_point_translated;
 	var horocycle_top;
 	var horocycle_bottom;
+	var new_transformation;
 
 	context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -554,26 +573,30 @@ function render(){
 			home_value3 = home_value1;
 			home_value1 = home_value2;
 			home_value2 = new_home_value;
+			x_vec = [x_vec[0] + y_vec[0], x_vec[1] + y_vec[1]];
 		} else if(animation_type == "top_left"){
 			new_home_value = 2*(home_value0 + home_value3) - home_value1;
 			home_value2 = home_value1;
 			home_value1 = home_value3;
 			home_value3 = new_home_value;
+			x_vec = [x_vec[0] - y_vec[0], x_vec[1] - y_vec[1]];
 		} else if(animation_type == "bottom_right"){
 			new_home_value = 2*(home_value1 + home_value2) - home_value0;
 			home_value3 = home_value0;
 			home_value0 = home_value2;
 			home_value2 = new_home_value;
+			y_vec = [x_vec[0] + y_vec[0], x_vec[1] + y_vec[1]];
 		} else {
 			new_home_value = 2*(home_value1 + home_value3) - home_value0;
 			home_value2 = home_value0;
 			home_value0 = home_value3;
 			home_value3 = new_home_value;
+			y_vec = [y_vec[0] - x_vec[0], y_vec[1] - x_vec[1]];
 		}
 		document.getElementById("a").value = home_value0.toString();
 		document.getElementById("c").value = home_value1.toString();
 		document.getElementById("b").value = (home_value2 - home_value0 - home_value1).toString();
-		setTimeout(render_stop, 50);
+		setTimeout(render_stop, 2/frame_rate);
 	} else {
 		get_animation_circle(animation_time);
 	}
@@ -582,24 +605,24 @@ function render(){
 function begin_animation(){
 	if(animation_time == 0 && animation_type == "top_right"){
 		animation_time = 0.05;
-		animation_inc = 0.1;
+		animation_inc = 2/frame_rate;
 		get_animation_circle(animation_time);
-		interval = setInterval(render, 50);
+		interval = setInterval(render, 1000/frame_rate);
 	} else if(animation_time == 0 && animation_type == "top_left"){
 		animation_time = -0.05;
-		animation_inc = -0.1;
+		animation_inc = -2/frame_rate;
 		get_animation_circle(animation_time);
-		interval = setInterval(render, 50);
+		interval = setInterval(render, 1000/frame_rate);
 	} else if(animation_time == 0 && animation_type == "bottom_right"){
 		animation_time = 0.05;
-		animation_inc = 0.1;
+		animation_inc = 2/frame_rate;
 		get_animation_circle(animation_time);
-		interval = setInterval(render, 50);
+		interval = setInterval(render, 1000/frame_rate);
 	} else if(animation_time == 0){
 		animation_time = -0.05;
-		animation_inc = -0.1;
+		animation_inc = -2/frame_rate;
 		get_animation_circle(animation_time);
-		interval = setInterval(render, 50);
+		interval = setInterval(render, 1000/frame_rate);
 	}
 }
 
@@ -628,21 +651,20 @@ function canvas_click(event){
 }
 
 function update_topograph(){
-	var a;
-	var b;
-	var c;
 	var discriminant;
 
-	a = parseInt(document.getElementById("a").value);
-	b = parseInt(document.getElementById("b").value);
-	c = parseInt(document.getElementById("c").value);
+	orig_a = parseInt(document.getElementById("a").value);
+	orig_b = parseInt(document.getElementById("b").value);
+	orig_c = parseInt(document.getElementById("c").value);
 
-	home_value0 = a;
-	home_value1 = c;
-	home_value2 = a + b + c;
-	home_value3 = a - b + c;
-	discriminant = b*b - 4*a*c;
+	home_value0 = orig_a;
+	home_value1 = orig_c;
+	home_value2 = orig_a + orig_b + orig_c;
+	home_value3 = orig_a - orig_b + orig_c;
+	discriminant = orig_b*orig_b - 4*orig_a*orig_c;
 	document.getElementById("dis").innerHTML = discriminant.toString();
+	x_vec = [1, 0];
+	y_vec = [0, 1];
 
 	if(discriminant > 0){
 		document.getElementById("type").innerHTML = "indefinite";
@@ -652,6 +674,15 @@ function update_topograph(){
 		document.getElementById("type").innerHTML = "semidefinite";
 	}
 	render_stop();
+}
+
+function update_performance_settings(){
+	if(animation_time == 0){
+		frame_rate = parseInt(document.getElementById("frame-rate").value);
+		render_depth = parseInt(document.getElementById("depth").value);
+		text_depth = parseInt(document.getElementById("text-depth").value);
+		update_topograph();
+	}
 }
 
 function getTouchPos(canvasDom, touchEvent){
@@ -677,14 +708,21 @@ function start(){
 	}
 	context = canvas.getContext("2d");
 	side_lengths = 1.092;
-	render_depth = 9;
+	render_depth = 8;
 	text_depth = 6;
-	frame_rate = 20;
+	frame_rate = 30;
 	branch_angle = Math.PI/3;
+	x_vec = [1, 0];
+	y_vec = [0, 1];
 
 	document.getElementById("a").value = "1";
 	document.getElementById("b").value = "0";
 	document.getElementById("c").value = "1";
+	orig_a = 1;
+	orig_b = 0;
+	orig_c = 1;
+	document.getElementById("transformation").innerHTML = document.getElementById("transformation-temp").innerHTML;
+	current_mathjax_promise = Promise.resolve();
 	update_topograph();
 
 	canvas.addEventListener("mousedown", canvas_click);
@@ -701,6 +739,26 @@ function start(){
 document.addEventListener("DOMContentLoaded", start);
 
 </script>
-<canvas id="canvas" style="width:100%; height:80%; position: absolute; top: 0px;"></canvas>
+<canvas id="canvas" style="width:100%; height:80%; display: block;"></canvas>
+<div style="display: block; text-align: center;">
+<p>Current quadratic form (click update to change to user input):</p>
+<input id="a" value="1" size="3"><span>\(x^2
++ \)</span><input id="b" value="0" size="3"><span>\(xy
++ \)</span><input id="c" value="1" size="3"><span>\(y^2\)</span>
+<button id="update" onclick="update_topograph();">Update</button>
+Discriminant: <span id="dis"></span> Type: <span id="type"></span>
+<p id="transformation"></p>
+<p id="transformation-temp" style="display: none;">
+Transformation
+\[x_0^2 + 0x_0y_0 + y_0^2 \rightarrow x^2 + 0xy + y^2\]
+\[\begin{pmatrix}
+1 && 0\\
+0 && 1\\
+\end{pmatrix}
+{x \choose y} = {x_0 \choose y_0}
+\]
+</p>
+<p>Performance Settings<br><br>Frame Rate: <input id="frame-rate" value="30" size="2"> Depth: <input id="depth" value="8" size="2"> Text Depth: <input id="text-depth" value="6" size="2"><button onclick = "update_performance_settings();">Update</button></p>
+</div>
 </body>
 </html>
