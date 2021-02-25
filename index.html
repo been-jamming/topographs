@@ -471,7 +471,8 @@ function render_stop(){
 	var screen_coord0;
 	var screen_coord1;
 
-	context.clearRect(0, 0, canvas.width, canvas.height);
+	context.fillStyle = "#FFFFFF";
+	context.fillRect(0, 0, canvas.width, canvas.height);
 
 	left = [-(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
 	right = [(Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1), 0];
@@ -507,8 +508,7 @@ function render_stop(){
 	text_in_circle(home_value1.toString(), horocycle_bottom);
 	draw_tree_right(right, 0, render_depth, text_depth, home_value1, home_value0, home_value2);
 	draw_tree_left(left, Math.PI, render_depth, text_depth, home_value1, home_value0, home_value3);
-	animation_time = 0;
-	typeset();
+	setTimeout(function(){typeset(); animation_time = 0;}, 10);
 }
 
 function render(){
@@ -521,7 +521,8 @@ function render(){
 	var horocycle_bottom;
 	var new_transformation;
 
-	context.clearRect(0, 0, canvas.width, canvas.height);
+	context.fillStyle = "#FFFFFF";
+	context.fillRect(0, 0, canvas.width, canvas.height);
 
 	x_val = (Math.exp(side_lengths/2) - 1)/(Math.exp(side_lengths/2) + 1);
 	left = animate_point([-x_val, 0]);
@@ -603,22 +604,22 @@ function render(){
 }
 
 function begin_animation(){
-	if(animation_time == 0 && animation_type == "top_right"){
+	if(animation_type == "top_right"){
 		animation_time = 0.05;
 		animation_inc = 2/frame_rate;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 1000/frame_rate);
-	} else if(animation_time == 0 && animation_type == "top_left"){
+	} else if(animation_type == "top_left"){
 		animation_time = -0.05;
 		animation_inc = -2/frame_rate;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 1000/frame_rate);
-	} else if(animation_time == 0 && animation_type == "bottom_right"){
+	} else if(animation_type == "bottom_right"){
 		animation_time = 0.05;
 		animation_inc = 2/frame_rate;
 		get_animation_circle(animation_time);
 		interval = setInterval(render, 1000/frame_rate);
-	} else if(animation_time == 0){
+	} else {
 		animation_time = -0.05;
 		animation_inc = -2/frame_rate;
 		get_animation_circle(animation_time);
@@ -635,18 +636,20 @@ function canvas_click(event){
 	click_x = event.clientX - rect.left;
 	click_y = event.clientY - rect.top;
 
-	if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
-		animation_type = "top_right";
-		begin_animation();
-	} else if(click_x < canvas.width/2 && click_y <= canvas.height/2){
-		animation_type = "top_left";
-		begin_animation();
-	} else if(click_x >= canvas.width/2 && click_y > canvas.height/2){
-		animation_type = "bottom_right";
-		begin_animation();
-	} else {
-		animation_type = "bottom_left";
-		begin_animation();
+	if(animation_time == 0){
+		if(click_x >= canvas.width/2 && click_y <= canvas.height/2){
+			animation_type = "top_right";
+			begin_animation();
+		} else if(click_x < canvas.width/2 && click_y <= canvas.height/2){
+			animation_type = "top_left";
+			begin_animation();
+		} else if(click_x >= canvas.width/2 && click_y > canvas.height/2){
+			animation_type = "bottom_right";
+			begin_animation();
+		} else {
+			animation_type = "bottom_left";
+			begin_animation();
+		}
 	}
 }
 
@@ -706,7 +709,7 @@ function start(){
 		min_side = canvas.height;
 		max_side = canvas.width;
 	}
-	context = canvas.getContext("2d");
+	context = canvas.getContext("2d", {alpha: false});
 	side_lengths = 1.092;
 	render_depth = 8;
 	text_depth = 6;
